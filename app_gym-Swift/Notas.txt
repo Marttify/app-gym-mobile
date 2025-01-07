@@ -1,0 +1,223 @@
+//
+//  Notas.txt
+//  app_gym-Swift
+//
+//  Created by Martin Aguilar on 06/01/2025.
+//
+
+//Estructura para ordenar los archivos MVC (Modelo, vista, controlador)
+
+
+
+
+//
+//  UsersManager.swift
+//  app_gym-Swift
+//
+//  Created by Martin Aguilar on 06/01/2025.
+//
+
+
+import Foundation
+
+struct UsersManager {
+    let USERS_URL: String = "http://localhost:3001/get-usuarios"
+    
+    func fetchUsers(completion: @escaping ([UsersModel]?) -> Void) {
+        print("Iniciando fetchUsers con URL: \(USERS_URL)")
+        performRequest(with: USERS_URL, completion: completion)
+    }
+
+    private func performRequest(with urlString: String, completion: @escaping ([UsersModel]?) -> Void) {
+        print("Creando URL con: \(urlString)")
+        guard let url = URL(string: urlString) else {
+            print("URL inválida: \(urlString)")
+            completion(nil)
+            return
+        }
+
+        // Crear la sesión
+        let session = URLSession(configuration: .default)
+        print("Sesión URL creada")
+
+        // Asignar tarea
+        let task = session.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error en la tarea: \(error.localizedDescription)")
+                completion(nil)
+                return
+            }
+
+            // Validar respuesta HTTP
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Código de estado HTTP: \(httpResponse.statusCode)")
+                if httpResponse.statusCode != 200 {
+                    print("Error: Código de estado inesperado \(httpResponse.statusCode)")
+                    completion(nil)
+                    return
+                }
+            }
+
+            // Validar datos
+            guard let safeData = data else {
+                print("Error: Datos nulos recibidos")
+                completion(nil)
+                return
+            }
+
+            print("Datos recibidos: \(String(data: safeData, encoding: .utf8) ?? "No se pudo convertir a string")")
+
+            // Parsear datos
+            if let usersData = self.parseJSON(usersData: safeData) {
+                print("Usuarios parseados: \(usersData)")
+                completion(usersData)
+            } else {
+                print("Error al parsear los datos")
+                completion(nil)
+            }
+        }
+
+        // Iniciar la tarea
+        print("Iniciando tarea")
+        task.resume()
+    }
+
+    private func parseJSON(usersData: Data) -> [UsersModel]? {
+        let decoder = JSONDecoder()
+        do {
+            print("Intentando decodificar JSON")
+            let users = try decoder.decode(UsersData.self, from: usersData)
+            print("Decodificación exitosa: \(users)")
+
+            let userModels = users.map {
+                UsersModel(from: $0)
+            }
+            print("Modelos creados: \(userModels)")
+            return userModels
+        } catch {
+            print("Error al decodificar JSON: \(error.localizedDescription)")
+            return nil
+        }
+    }
+}
+
+
+
+
+
+//
+//  ViewController.swift
+//  app_gym-Swift
+//
+//  Created by Martin Aguilar on 06/01/2025.
+//
+
+import UIKit
+
+class ViewController: UIViewController {
+    
+    var usersManager = UsersManager()
+
+    @IBOutlet weak var IdLabelUser: UILabel!
+    @IBOutlet weak var NombreLabelUser: UILabel!
+    @IBOutlet weak var ApellidoLabelUser: UILabel!
+    @IBOutlet weak var RolLabelUser: UILabel!
+    @IBOutlet weak var EstadoLabelUser: UILabel!
+    @IBOutlet weak var EmailLavelUser: UILabel!
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Llamar a fetchUsers con un completion handler
+        usersManager.fetchUsers { users in
+            // Aquí puedes manejar los usuarios que se recibieron
+            if let users = users, !users.isEmpty {
+                // Si los usuarios son válidos y no está vacío el array
+                print("Usuarios recibidos: \(users)")
+                
+                // Obtener los campos del primer usuario
+                let firstUserId = users.first?.id ?? 0
+                let firstUserNombre = users.first?.nombre ?? ""
+                let firstUserApellido = users.first?.apellido ?? ""
+                let firstUserRol = users.first?.rol ?? ""
+                let firstUserEstado = users.first?.estado ?? false
+                let firstUserEmail = users.first?.email ?? ""
+
+                
+                // Actualizar la UI
+                DispatchQueue.main.async {
+                    self.IdLabelUser.text = "\(firstUserId)"
+                    self.NombreLabelUser.text = "\(firstUserNombre)"
+                    self.ApellidoLabelUser.text = "\(firstUserApellido)"
+                    self.RolLabelUser.text = "\(firstUserRol)"
+                    self.EstadoLabelUser.text = "\(firstUserEstado ? "activo" : "desactivado")"
+                    self.EmailLavelUser.text = "\(firstUserEmail)"
+                }
+            } else {
+                print("Error al obtener usuarios o no hay usuarios")
+                DispatchQueue.main.async {
+                    self.IdLabelUser.text = "No se pudo obtener usuarios"
+                }
+            }
+        }
+    }
+}
+
+
+
+
+//
+//  ViewController.swift
+//  app_gym-Swift
+//
+//  Created by Martin Aguilar on 06/01/2025.
+//
+
+import UIKit
+
+class ViewController: UIViewController {
+    
+    var usersManager = UsersManager()
+
+    @IBOutlet weak var IdLabelUser: UILabel!
+    @IBOutlet weak var NombreLabelUser: UILabel!
+    @IBOutlet weak var ApellidoLabelUser: UILabel!
+    @IBOutlet weak var RolLabelUser: UILabel!
+    @IBOutlet weak var EstadoLabelUser: UILabel!
+    @IBOutlet weak var EmailLavelUser: UILabel!
+    
+    @IBOutlet weak var tableView: UITableView!
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        usersManager.fetchUsers { users in
+            // Manejar los usuarios que se recibieron
+            if let users = users, !users.isEmpty {
+                print("Usuarios recibidos: \(users)")
+                
+                // Obtener los campos del primer usuario
+                let firstUserId = users.first?.id ?? 0
+                let firstUserNombre = users.first?.nombre ?? ""
+                let firstUserApellido = users.first?.apellido ?? ""
+                let firstUserRol = users.first?.rol ?? ""
+                let firstUserEstado = users.first?.estado ?? false
+                let firstUserEmail = users.first?.email ?? ""
+
+                
+                // Actualizar la UI
+                DispatchQueue.main.async {
+                    self.IdLabelUser.text = "\(firstUserId)"
+                    self.NombreLabelUser.text = "\(firstUserNombre)"
+                    self.ApellidoLabelUser.text = "\(firstUserApellido)"
+                    self.RolLabelUser.text = "\(firstUserRol)"
+                    self.EstadoLabelUser.text = "\(firstUserEstado ? "activo" : "desactivado")"
+                    self.EmailLavelUser.text = "\(firstUserEmail)"
+                }
+            } else {
+                print("Error al obtener usuarios o no hay usuarios")
+                DispatchQueue.main.async {
+                    self.IdLabelUser.text = "No se pudo obtener usuarios"
+                }
+            }
+        }
+    }
+}
